@@ -45,7 +45,7 @@ static Layout layouts[] = {
 	{ "[ ]", fullscreen },
 };
 
-#define MOD CTRL('x')
+#define MOD CTRL('z')
 
 /* you can at most specifiy MAX_ARGS (2) number of arguments */
 static Key keys[] = {
