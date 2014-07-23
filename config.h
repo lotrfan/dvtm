@@ -46,6 +46,7 @@ static Layout layouts[] = {
 };
 
 #define MOD CTRL('z')
+#define MOD_ALT CTRL('g')
 
 /* you can at most specifiy MAX_ARGS (2) number of arguments */
 static Key keys[] = {
@@ -92,6 +93,53 @@ static Key keys[] = {
 	{ MOD,   KEY_NPAGE,     { scrollback,       { "1"  }                    } },
 	{ MOD,   KEY_F(1),      { create,           { "man dvtm", "dvtm help" } } },
 	{ MOD,   MOD,           { send,             { (const char []) { MOD, 0} } } },
+
+    // Same as above, but with the 'alternate' MOD
+	{ MOD_ALT,   'C',           { create,           { NULL }                    } },
+	{ MOD_ALT,   'c',           { create,           { NULL, NULL, "$CWD" }      } },
+	{ MOD_ALT,   CTRL('C'),     { create,           { NULL, NULL, "$CWD" }      } },
+	{ MOD_ALT,   'x',           { killclient,       { NULL }                    } },
+	{ MOD_ALT,   'j',           { focusnext,        { NULL }                    } },
+	{ MOD_ALT,   CTRL('j'),     { focusnext,        { NULL }                    } },
+	{ MOD_ALT,   'u',           { focusnextnm,      { NULL }                    } },
+	{ MOD_ALT,   'i',           { focusprevnm,      { NULL }                    } },
+	{ MOD_ALT,   'k',           { focusprev,        { NULL }                    } },
+	{ MOD_ALT,   CTRL('k'),     { focusprev,        { NULL }                    } },
+	{ MOD_ALT,   't',           { setlayout,        { "[]=" }                   } },
+	{ MOD_ALT,   'g',           { setlayout,        { "+++" }                   } },
+	{ MOD_ALT,   'b',           { setlayout,        { "TTT" }                   } },
+	{ MOD_ALT,   'm',           { setlayout,        { "[ ]" }                   } },
+	{ MOD_ALT,   ' ',           { setlayout,        { NULL }                    } },
+	{ MOD_ALT,   'h',           { setmfact,         { "-0.05" }                 } },
+	{ MOD_ALT,   'l',           { setmfact,         { "+0.05" }                 } },
+	{ MOD_ALT,   '.',           { toggleminimize,   { NULL }                    } },
+	{ MOD_ALT,   's',           { togglebar,        { NULL }                    } },
+	{ MOD_ALT,   'M',           { togglemouse,      { NULL }                    } },
+	{ MOD_ALT,   '\n',          { zoom ,            { NULL }                    } },
+	{ MOD_ALT,   '1',           { focusn,           { "1" }                     } },
+	{ MOD_ALT,   '2',           { focusn,           { "2" }                     } },
+	{ MOD_ALT,   '3',           { focusn,           { "3" }                     } },
+	{ MOD_ALT,   '4',           { focusn,           { "4" }                     } },
+	{ MOD_ALT,   '5',           { focusn,           { "5" }                     } },
+	{ MOD_ALT,   '6',           { focusn,           { "6" }                     } },
+	{ MOD_ALT,   '7',           { focusn,           { "7" }                     } },
+	{ MOD_ALT,   '8',           { focusn,           { "8" }                     } },
+	{ MOD_ALT,   '9',           { focusn,           { "9" }                     } },
+	{ MOD_ALT,   '\t',          { focuslast,        { NULL }                    } },
+	{ MOD_ALT,   'q',           { quit,             { NULL }                    } },
+	{ MOD_ALT,   'a',           { togglerunall,     { NULL }                    } },
+	{ MOD_ALT,   'r',           { redraw,           { NULL }                    } },
+	{ MOD_ALT,   'B',           { togglebell,       { NULL }                    } },
+	{ MOD_ALT,   'v',           { copymode,         { NULL }                    } },
+	{ MOD_ALT,   '/',           { copymode,         { "/" }                     } },
+	{ MOD_ALT,   '?',           { copymode,         { "?" }                     } },
+	{ MOD_ALT,   'p',           { paste,            { NULL }                    } },
+	{ MOD_ALT,   KEY_PPAGE,     { scrollback,       { "-1" }                    } },
+	{ MOD_ALT,   KEY_NPAGE,     { scrollback,       { "1"  }                    } },
+	{ MOD_ALT,   KEY_F(1),      { create,           { "man dvtm", "dvtm help" } } },
+	{ MOD_ALT,   MOD,           { send,             { (const char []) { MOD, 0} } } },
+
+
 	{ NOMOD, KEY_SPREVIOUS, { scrollback,       { "-1" }                    } },
 	{ NOMOD, KEY_SNEXT,     { scrollback,       { "1"  }                    } },
 	{ NOMOD, '',          { scrollback_lines, { "-3" }                    } },
