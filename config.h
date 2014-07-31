@@ -93,7 +93,7 @@ static Layout layouts[] = {
 	{ modifier,   KEY_PPAGE,     { scrollback,       { "-1" }                    } }, \
 	{ modifier,   KEY_NPAGE,     { scrollback,       { "1"  }                    } }, \
 	{ modifier,   KEY_F(1),      { create,           { "man dvtm", "dvtm help" } } }, \
-	{ modifier,   modifier,      { send,             { (const char []) { MOD, 0} } } }
+	{ modifier,   modifier,      { send,             { (const char []) { modifier, 0} } } }
 
 /* you can at most specifiy MAX_ARGS (2) number of arguments */
 static Key keys[] = {
