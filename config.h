@@ -52,8 +52,6 @@ static Layout layouts[] = {
 	{ modifier,   'C',           { create,           { NULL }                    } }, \
 	{ modifier,   'c',           { create,           { NULL, NULL, "$CWD" }      } }, \
 	{ modifier,   CTRL('C'),     { create,           { NULL, NULL, "$CWD" }      } }, \
-	{ modifier,   'a',           { create,           { "slmenu_abduco", NULL, NULL }      } }, \
-	{ modifier,   CTRL('A'),     { create,           { "slmenu_abduco", NULL, NULL }      } }, \
 	{ modifier,   'x',           { killclient,       { NULL }                    } }, \
 	{ modifier,   'j',           { focusnext,        { NULL }                    } }, \
 	{ modifier,   CTRL('j'),     { focusnext,        { NULL }                    } }, \
