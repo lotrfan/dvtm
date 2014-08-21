@@ -439,6 +439,9 @@ static void interpret_csi_sgr(Vt *t, int param[], int pcount)
 		case 1:
 			b->curattrs |= A_BOLD;
 			break;
+		case 3:
+			b->curattrs |= A_ITALIC;
+			break;
 		case 4:
 			b->curattrs |= A_UNDERLINE;
 			break;
@@ -453,6 +456,9 @@ static void interpret_csi_sgr(Vt *t, int param[], int pcount)
 			break;
 		case 22:
 			b->curattrs &= ~A_BOLD;
+			break;
+		case 23:
+			b->curattrs &= ~A_ITALIC;
 			break;
 		case 24:
 			b->curattrs &= ~A_UNDERLINE;
