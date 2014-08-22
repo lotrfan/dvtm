@@ -250,7 +250,7 @@ static int xwcwidth(wchar_t c) {
 }
 
 __attribute__ ((const))
-static uint16_t build_attrs(unsigned curattrs)
+static attr_t build_attrs(unsigned curattrs)
 {
 	return ((curattrs & ~A_COLOR) | COLOR_PAIR(curattrs & 0xff))
 	    >> NCURSES_ATTR_SHIFT;
