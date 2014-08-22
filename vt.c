@@ -109,7 +109,7 @@ typedef struct {
 
 typedef struct {
 	wchar_t text;
-	uint16_t attr;
+	attr_t attr;
 	short fg;
 	short bg;
 } Cell;
