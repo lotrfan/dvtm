@@ -100,8 +100,6 @@ static Key keys[] = {
 
 	{ NOMOD, KEY_SPREVIOUS, { scrollback,       { "-1" }                    } },
 	{ NOMOD, KEY_SNEXT,     { scrollback,       { "1"  }                    } },
-	{ NOMOD, '',          { scrollback_lines, { "-3" }                    } },
-	{ NOMOD, '',          { scrollback_lines, { "3"  }                    } },
 };
 
 static const ColorRule colorrules[] = {
