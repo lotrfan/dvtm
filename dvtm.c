@@ -76,7 +76,7 @@ struct Client {
 
 typedef struct {
 	const char *title;
-	unsigned attrs;
+	attr_t attrs;
 	short fg;
 	short bg;
 } ColorRule;
@@ -412,7 +412,7 @@ static void
 applycolorrules(Client *c) {
 	const ColorRule *r = colorrules;
 	short fg = r->fg, bg = r->bg;
-	unsigned attrs = r->attrs;
+	attr_t attrs = r->attrs;
 
 	for (unsigned int i = 1; i < countof(colorrules); i++) {
 		r = &colorrules[i];

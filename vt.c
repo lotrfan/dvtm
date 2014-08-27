@@ -131,7 +131,7 @@ typedef struct {
 	int scroll_amount_above;
 	int scroll_amount_below;
 	int rows, cols, maxcols;
-	unsigned curattrs, savattrs;
+	attr_t curattrs, savattrs;
 	int curs_col, curs_srow, curs_scol;
 	short curfg, curbg, savfg, savbg;
 } Buffer;
@@ -140,7 +140,7 @@ struct Vt {
 	Buffer buffer_normal;
 	Buffer buffer_alternate;
 	Buffer *buffer;
-	unsigned defattrs;
+	attr_t defattrs;
 	short deffg, defbg;
 	int pty;
 	pid_t childpid;
@@ -250,7 +250,7 @@ static int xwcwidth(wchar_t c) {
 }
 
 __attribute__ ((const))
-static attr_t build_attrs(unsigned curattrs)
+static attr_t build_attrs(attr_t curattrs)
 {
 	return ((curattrs & ~A_COLOR) | COLOR_PAIR(curattrs & 0xff))
 	    >> NCURSES_ATTR_SHIFT;
