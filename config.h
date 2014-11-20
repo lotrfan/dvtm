@@ -240,6 +240,7 @@ static char const * const keytable[] = {
  * redirected (i.e. not a terminal).
  */
 static Editor editors[] = {
+	{ .name = "vvis",        .argv = { "vvis", "+%d", "-", NULL }, .filter = true  },
 	{ .name = "vis",         .argv = { "vis", "+%d", "-", NULL  }, .filter = true  },
 	{ .name = "sandy",       .argv = { "sandy", "-d", "-", NULL }, .filter = true  },
 	{ .name = "dvtm-editor", .argv = { "dvtm-editor", "-", NULL }, .filter = true  },
