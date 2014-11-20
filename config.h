@@ -43,7 +43,7 @@ static Color colors[] = {
 /* master width factor [0.1 .. 0.9] */
 #define MFACT 0.5
 /* scroll back buffer size in lines */
-#define SCROLL_HISTORY 500
+#define SCROLL_HISTORY 10000
 /* printf format string for the tag in the status bar */
 #define TAG_SYMBOL   "[%s]"
 /* curses attributes for the currently selected tags */
