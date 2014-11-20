@@ -106,7 +106,8 @@ static Layout layouts[] = {
 	{ { mod, 'B',          }, { togglebell,     { NULL }                    } }, \
 	{ { mod, 'e',          }, { copymode,       { NULL }                    } }, \
 	{ { mod, '/',          }, { copymode,       { "/" }                     } }, \
-	{ { mod, 'p',          }, { paste,          { NULL }                    } }, \
+	{ { mod, 'P',          }, { paste,          { NULL }                    } }, \
+	{ { mod, 'p',          }, { xpaste,         { NULL }                    } }, \
 	{ { mod, KEY_PPAGE,    }, { scrollback,     { "-1" }                    } }, \
 	{ { mod, KEY_NPAGE,    }, { scrollback,     { "1"  }                    } }, \
 	{ { mod, '?',          }, { create,         { "man dvtm", "dvtm help" } } }, \

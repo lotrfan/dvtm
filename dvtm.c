@@ -183,6 +183,7 @@ static void focusprevnm(const char *args[]);
 static void focuslast(const char *args[]);
 static void killclient(const char *args[]);
 static void paste(const char *args[]);
+static void xpaste(const char *args[]);
 static void quit(const char *args[]);
 static void redraw(const char *args[]);
 static void scrollback(const char *args[]);
@@ -1180,6 +1181,52 @@ static void
 paste(const char *args[]) {
 	if (sel && copyreg.data)
 		vt_write(sel->term, copyreg.data, copyreg.len);
+}
+
+static void
+xpaste(const char *args[]) {
+	if (sel) {
+		pid_t pid;
+		int child_to_parent[2] = { -1, -1 };
+
+		if (-1 == pipe(child_to_parent)) {
+			return;
+		}
+
+		if (0 == (pid = fork())) {
+			close(STDERR_FILENO);
+			close(STDIN_FILENO);
+
+			close(child_to_parent[0]);
+			dup2(child_to_parent[1], STDOUT_FILENO);
+			close(child_to_parent[1]);
+
+			/* execlp("echo", "echo", "foo", (char*)NULL); */
+			execlp("xclip", "xclip", "-out", (char*)NULL);
+			close(STDOUT_FILENO);
+		} else if (pid > 0) {
+			close(child_to_parent[1]);
+
+			char buf[128];
+
+			while (1) {
+				ssize_t len = read(child_to_parent[0], buf, countof(buf));
+				if (len == -1) {
+					if (errno == EINTR)
+						continue;
+					break;
+				}
+				if (len == 0)
+					break;
+				vt_write(sel->term, buf, len);
+			}
+
+			close(child_to_parent[0]);
+		} else {
+			close(child_to_parent[0]);
+			close(child_to_parent[1]);
+		}
+	}
 }
 
 static void
