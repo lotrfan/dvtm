@@ -34,7 +34,7 @@
 #include <wchar.h>
 #if defined(__linux__) || defined(__CYGWIN__)
 # include <pty.h>
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
 # include <libutil.h>
 #elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 # include <util.h>
@@ -86,7 +86,7 @@
 static bool is_utf8, has_default_colors;
 static short color_pairs_reserved, color_pairs_max, color_pair_current;
 static short *color2palette, default_fg, default_bg;
-static char vt_term[32] = "dvtm";
+static char vt_term[32];
 
 typedef struct {
 	wchar_t text;
@@ -192,6 +192,7 @@ struct Vt {
 	int srow, scol;          /* last known offset to display start row, start column */
 	char title[256];         /* xterm style window title */
 	vt_title_handler_t title_handler; /* hook which is called when title changes */
+	vt_urgent_handler_t urgent_handler; /* hook which is called upon bell */
 	void *data;              /* user supplied data */
 };
 
@@ -946,8 +947,16 @@ static void interpret_csi_priv_mode(Vt *t, int param[], int pcount, bool set)
 			t->curshid = !set;
 			break;
 		case 47: /* use alternate/normal screen buffer */
+		case 1047:
+		case 1049:
 			t->buffer = set ? &t->buffer_alternate : &t->buffer_normal;
 			vt_dirty(t);
+			break;
+		case 1048:
+			if (set)
+				cursor_save(t);
+			else
+				cursor_restore(t);
 			break;
 		case 1000: /* enable/disable normal mouse tracking */
 			t->mousetrack = set;
@@ -1247,8 +1256,8 @@ static void process_nonprinting(Vt *t, wchar_t wc)
 		new_escape_sequence(t);
 		break;
 	case '\a': /* BEL */
-		if (t->bell)
-			beep();
+		if (t->urgent_handler)
+			t->urgent_handler(t);
 		break;
 	case '\b': /* BS */
 		if (b->curs_col > 0)
@@ -1550,16 +1559,6 @@ void vt_noscroll(Vt *t)
 		vt_scroll(t, scroll_below);
 }
 
-void vt_bell(Vt *t, bool bell)
-{
-	t->bell = bell;
-}
-
-void vt_togglebell(Vt *t)
-{
-	t->bell = !t->bell;
-}
-
 pid_t vt_forkpty(Vt *t, const char *p, const char *argv[], const char *cwd, const char *env[], int *to, int *from)
 {
 	int vt2ed[2], ed2vt[2];
@@ -1811,12 +1810,10 @@ void vt_init(void)
 {
 	init_colors();
 	is_utf8_locale();
-	char color_suffix[] = "-256color";
 	char *term = getenv("DVTM_TERM");
-	if (term)
-		strncpy(vt_term, term, sizeof(vt_term) - sizeof(color_suffix));
-	if (COLORS >= 256)
-		strncat(vt_term, color_suffix, sizeof(color_suffix) - 1);
+	if (!term)
+		term = "dvtm";
+	snprintf(vt_term, sizeof vt_term, "%s%s", term, COLORS >= 256 ? "-256color" : "");
 }
 
 void vt_keytable_set(const char * const keytable_overlay[], int count)
@@ -1836,6 +1833,11 @@ void vt_shutdown(void)
 void vt_title_handler_set(Vt *t, vt_title_handler_t handler)
 {
 	t->title_handler = handler;
+}
+
+void vt_urgent_handler_set(Vt *t, vt_urgent_handler_t handler)
+{
+	t->urgent_handler = handler;
 }
 
 void vt_data_set(Vt *t, void *data)
