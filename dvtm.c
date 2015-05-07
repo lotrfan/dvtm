@@ -1,7 +1,7 @@
 /*
  * The initial "port" of dwm to curses was done by
  *
- * © 2007-2014 Marc André Tanner <mat at brain-dump dot org>
+ * © 2007-2015 Marc André Tanner <mat at brain-dump dot org>
  *
  * It is highly inspired by the original X11 dwm and
  * reuses some code of it which is mostly
@@ -46,6 +46,7 @@ int ESCDELAY;
 
 typedef struct {
 	float mfact;
+	unsigned int nmaster;
 	int history;
 	int w;
 	int h;
@@ -133,11 +134,10 @@ typedef struct {
 } Cmd;
 
 enum { BAR_TOP, BAR_BOTTOM, BAR_OFF };
-enum { ALIGN_LEFT, ALIGN_RIGHT };
 
 typedef struct {
 	int fd;
-	int pos;
+	int pos, lastpos;
 	bool autohide;
 	unsigned short int h;
 	unsigned short int y;
@@ -164,8 +164,8 @@ typedef struct {
 } Editor;
 
 #define LENGTH(arr) (sizeof(arr) / sizeof((arr)[0]))
-#define STRLEN(str) (sizeof(str) - 1)
 #define MAX(x, y)   ((x) > (y) ? (x) : (y))
+#define MIN(x, y)   ((x) < (y) ? (x) : (y))
 #define TAGMASK     ((1 << LENGTH(tags)) - 1)
 
 #ifdef NDEBUG
@@ -191,10 +191,12 @@ static void redraw(const char *args[]);
 static void scrollback(const char *args[]);
 static void send(const char *args[]);
 static void setlayout(const char *args[]);
+static void incnmaster(const char *args[]);
 static void setmfact(const char *args[]);
 static void startup(const char *args[]);
 static void tag(const char *args[]);
 static void togglebar(const char *args[]);
+static void togglebarpos(const char *args[]);
 static void toggleminimize(const char *args[]);
 static void togglemouse(const char *args[]);
 static void togglerunall(const char *args[]);
@@ -223,7 +225,7 @@ static char *title;
 
 /* global variables */
 static const char *dvtm_name = "dvtm";
-Screen screen = { .mfact = MFACT, .history = SCROLL_HISTORY };
+Screen screen = { .mfact = MFACT, .nmaster = NMASTER, .history = SCROLL_HISTORY };
 static Client *stack = NULL;
 static Client *sel = NULL;
 static Client *lastsel = NULL;
@@ -232,7 +234,7 @@ static unsigned int seltags;
 static unsigned int tagset[2] = { 1, 1 };
 static bool mouse_events_enabled = ENABLE_MOUSE;
 static Layout *layout = layouts;
-static StatusBar bar = { .fd = -1, .pos = BAR_POS, .autohide = BAR_AUTOHIDE, .h = 1 };
+static StatusBar bar = { .fd = -1, .lastpos = BAR_POS, .pos = BAR_POS, .autohide = BAR_AUTOHIDE, .h = 1 };
 static CmdFifo cmdfifo = { .fd = -1 };
 static const char *shell;
 static Register copyreg;
@@ -298,8 +300,22 @@ updatebarpos(void) {
 }
 
 static void
+hidebar(void) {
+	if (bar.pos != BAR_OFF) {
+		bar.lastpos = bar.pos;
+		bar.pos = BAR_OFF;
+	}
+}
+
+static void
+showbar(void) {
+	if (bar.pos == BAR_OFF)
+		bar.pos = bar.lastpos;
+}
+
+static void
 drawbar(void) {
-	int sx, sy, x = 0;
+	int sx, sy, x, y, width;
 	unsigned int occupied = 0, urgent = 0;
 	if (bar.pos == BAR_OFF)
 		return;
@@ -324,29 +340,36 @@ drawbar(void) {
 		else
 			attrset(TAG_NORMAL);
 		printw(TAG_SYMBOL, tags[i]);
-		/* -2 because we assume %s is contained in TAG_SYMBOL */
-		x += STRLEN(TAG_SYMBOL) - 2 + strlen(tags[i]);
 	}
+
 	attrset(TAG_NORMAL);
+	addstr(layout->symbol);
+
+	getyx(stdscr, y, x);
+	(void)y;
+	int maxwidth = screen.w - x - 2;
+
 	addch('[');
 	attrset(BAR_ATTR);
 
 	wchar_t wbuf[sizeof bar.text];
-	int w, maxwidth = screen.w - x - 2;
+	size_t numchars = mbstowcs(wbuf, bar.text, sizeof bar.text);
 
-	if (mbstowcs(wbuf, bar.text, sizeof bar.text) == (size_t)-1)
-		return;
-	if ((w = wcswidth(wbuf, maxwidth)) == -1)
-		return;
-	if (BAR_ALIGN == ALIGN_RIGHT) {
-		for (int i = 0; i + w < maxwidth; i++)
+	if (numchars != (size_t)-1 && (width = wcswidth(wbuf, maxwidth)) != -1) {
+		int pos;
+		for (pos = 0; pos + width < maxwidth; pos++)
 			addch(' ');
+
+		for (size_t i = 0; i < numchars; i++) {
+			pos += wcwidth(wbuf[i]);
+			if (pos > maxwidth)
+				break;
+			addnwstr(wbuf+i, 1);
+		}
+
+		clrtoeol();
 	}
-	addstr(bar.text);
-	if (BAR_ALIGN == ALIGN_LEFT) {
-		for (; w < maxwidth; w++)
-			addch(' ');
-	}
+
 	attrset(TAG_NORMAL);
 	mvaddch(bar.y, screen.w - 1, ']');
 	attrset(NORMAL_ATTR);
@@ -374,7 +397,7 @@ draw_border(Client *c) {
 	wattrset(c->window, attrs);
 	getyx(c->window, y, x);
 	mvwhline(c->window, 0, 0, ACS_HLINE, c->w);
-	maxlen = c->w - (2 + STRLEN(TITLE) - STRLEN("%s%sd")  + STRLEN(SEPARATOR) + 2);
+	maxlen = c->w - 10;
 	if (maxlen < 0)
 		maxlen = 0;
 	if ((size_t)maxlen < sizeof(c->title)) {
@@ -382,9 +405,9 @@ draw_border(Client *c) {
 		c->title[maxlen] = '\0';
 	}
 
-	mvwprintw(c->window, 0, 2, TITLE,
+	mvwprintw(c->window, 0, 2, "[%s%s#%d]",
 	          *c->title ? c->title : "",
-	          *c->title ? SEPARATOR : "",
+	          *c->title ? " | " : "",
 	          c->order);
 	if (t)
 		c->title[maxlen] = t;
@@ -435,7 +458,7 @@ draw_all(void) {
 
 static void
 arrange(void) {
-	int m = 0, n = 0;
+	unsigned int m = 0, n = 0;
 	for (Client *c = nextvisible(clients); c; c = nextvisible(c->next)) {
 		c->order = ++n;
 		if (c->minimized)
@@ -445,19 +468,19 @@ arrange(void) {
 	attrset(NORMAL_ATTR);
 	if (bar.fd == -1 && bar.autohide) {
 		if ((!clients || !clients->next) && n == 1)
-			bar.pos = BAR_OFF;
+			hidebar();
 		else
-			bar.pos = BAR_POS;
+			showbar();
 		updatebarpos();
 	}
 	if (m && !isarrange(fullscreen))
 		wah--;
 	layout->arrange();
 	if (m && !isarrange(fullscreen)) {
-		int nw = waw / m, nx = wax;
+		unsigned int i = 0, nw = waw / m, nx = wax;
 		for (Client *c = nextvisible(clients); c; c = nextvisible(c->next)) {
 			if (c->minimized) {
-				resize(c, nx, way+wah, nw, 1);
+				resize(c, nx, way+wah, ++i == m ? waw - nx : nw, 1);
 				nx += nw;
 			}
 		}
@@ -879,6 +902,7 @@ setup(void) {
 	initscr();
 	start_color();
 	noecho();
+	nonl();
 	keypad(stdscr, TRUE);
 	mouse_setup();
 	raw();
@@ -1031,14 +1055,13 @@ copymode(const char *args[]) {
 	if (!ed)
 		ed = editors[0].name;
 
-	const char **argv = (const char*[]){ ed, "-", NULL };
+	const char **argv = (const char*[]){ ed, "-", NULL, NULL };
+	char argline[32];
 
 	for (unsigned int i = 0; i < LENGTH(editors); i++) {
 		if (!strcmp(editors[i].name, ed)) {
-			argv = (const char*[]){ ed, NULL, NULL, NULL, NULL, NULL, NULL };
 			for (int j = 1; editors[i].argv[j]; j++) {
 				if (strstr(editors[i].argv[j], "%d")) {
-					char argline[32];
 					int line = vt_content_start(sel->app);
 					snprintf(argline, sizeof(argline), "+%d", line);
 					argv[j] = argline;
@@ -1272,6 +1295,26 @@ setlayout(const char *args[]) {
 }
 
 static void
+incnmaster(const char *args[]) {
+	int delta;
+
+	if (isarrange(fullscreen) || isarrange(grid))
+		return;
+	/* arg handling, manipulate nmaster */
+	if (args[0] == NULL) {
+		screen.nmaster = NMASTER;
+	} else if (sscanf(args[0], "%d", &delta) == 1) {
+		if (args[0][0] == '+' || args[0][0] == '-')
+			screen.nmaster += delta;
+		else
+			screen.nmaster = delta;
+		if (screen.nmaster < 1)
+			screen.nmaster = 1;
+	}
+	arrange();
+}
+
+static void
 setmfact(const char *args[]) {
 	float delta;
 
@@ -1280,7 +1323,7 @@ setmfact(const char *args[]) {
 	/* arg handling, manipulate mfact */
 	if (args[0] == NULL) {
 		screen.mfact = MFACT;
-	} else if (1 == sscanf(args[0], "%f", &delta)) {
+	} else if (sscanf(args[0], "%f", &delta) == 1) {
 		if (args[0][0] == '+' || args[0][0] == '-')
 			screen.mfact += delta;
 		else
@@ -1302,10 +1345,24 @@ startup(const char *args[]) {
 static void
 togglebar(const char *args[]) {
 	if (bar.pos == BAR_OFF)
-		bar.pos = (BAR_POS == BAR_OFF) ? BAR_TOP : BAR_POS;
+		showbar();
 	else
-		bar.pos = BAR_OFF;
+		hidebar();
 	bar.autohide = false;
+	updatebarpos();
+	redraw(NULL);
+}
+
+static void
+togglebarpos(const char *args[]) {
+	switch (bar.pos == BAR_OFF ? bar.lastpos : bar.pos) {
+	case BAR_TOP:
+		bar.pos = BAR_BOTTOM;
+		break;
+	case BAR_BOTTOM:
+		bar.pos = BAR_TOP;
+		break;
+	}
 	updatebarpos();
 	redraw(NULL);
 }
@@ -1649,7 +1706,7 @@ parse_args(int argc, char *argv[]) {
 			usage();
 		switch (argv[arg][1]) {
 			case 'v':
-				puts("dvtm-"VERSION" © 2007-2014 Marc André Tanner");
+				puts("dvtm-"VERSION" © 2007-2015 Marc André Tanner");
 				exit(EXIT_SUCCESS);
 			case 'M':
 				mouse_events_enabled = !mouse_events_enabled;
