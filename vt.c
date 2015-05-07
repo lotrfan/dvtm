@@ -214,9 +214,9 @@ static const char *keytable[KEY_MAX+1] = {
 #endif
 	[KEY_SRIGHT]    = "\e[1;2C",
 	[KEY_SLEFT]     = "\e[1;2D",
-	[KEY_BACKSPACE] = "\x08",
+	[KEY_BACKSPACE] = "\177",
 	[KEY_IC]        = "\e[2~",
-	[KEY_DC]        = "\x7f",
+	[KEY_DC]        = "\e[3~",
 	[KEY_PPAGE]     = "\e[5~",
 	[KEY_NPAGE]     = "\e[6~",
 	[KEY_HOME]      = "\e[7~",
