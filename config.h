@@ -26,22 +26,18 @@ static Color colors[] = {
 #define SELECTED_ATTR   (COLOR(BLUE) | A_NORMAL)
 /* curses attributes for normal (not selected) windows */
 #define NORMAL_ATTR     (COLOR(DEFAULT) | A_NORMAL)
+/* curses attributes for a window with pending urgent flag */
+#define URGENT_ATTR     NORMAL_ATTR
 /* curses attributes for the status bar */
 #define BAR_ATTR        (COLOR(BLUE) | A_NORMAL)
 /* status bar (command line option -s) position */
 #define BAR_POS         BAR_TOP /* BAR_BOTTOM, BAR_OFF */
 /* whether status bar should be hidden if only one client exists */
 #define BAR_AUTOHIDE    true
-/* determines whether the statusbar text should be right or left aligned */
-#define BAR_ALIGN       ALIGN_RIGHT
-/* separator between window title and window number */
-#define SEPARATOR " | "
-/* printf format string for the window title, first %s
- * is replaced by the title, second %s is replaced by
- * the SEPARATOR, %d stands for the window number */
-#define TITLE "[%s%s#%d]"
 /* master width factor [0.1 .. 0.9] */
 #define MFACT 0.5
+/* number of clients in master area */
+#define NMASTER 1
 /* scroll back buffer size in lines */
 #define SCROLL_HISTORY 10000
 /* printf format string for the tag in the status bar */
@@ -52,6 +48,8 @@ static Color colors[] = {
 #define TAG_NORMAL   (COLOR(DEFAULT) | A_NORMAL)
 /* curses attributes for not selected tags which contain windows */
 #define TAG_OCCUPIED (COLOR(BLUE) | A_NORMAL)
+/* curses attributes for not selected tags which with urgent windows */
+#define TAG_URGENT (COLOR(BLUE) | A_NORMAL | A_BLINK)
 
 const char tags[][8] = { "1", "2", "3", "4", "5" };
 
@@ -68,108 +66,85 @@ static Layout layouts[] = {
 	{ "[ ]", fullscreen },
 };
 
-#define MOD CTRL('g')
-
-#define __bindings(mod) \
-	{ { mod, 'C',          }, { create,         { NULL }                    } }, \
-	{ { mod, 'c',          }, { create,         { NULL, NULL, "$CWD" }      } }, \
-	{ { mod, 'x',          }, { killclient,     { NULL }                    } }, \
-	{ { mod, 'j',          }, { focusnext,      { NULL }                    } }, \
-	{ { mod, 'u',          }, { focusnextnm,    { NULL }                    } }, \
-	{ { mod, 'i',          }, { focusprevnm,    { NULL }                    } }, \
-	{ { mod, 'k',          }, { focusprev,      { NULL }                    } }, \
-	{ { mod, 'd',          }, { setlayout,      { "[]=" }                   } }, \
-	{ { mod, 'g',          }, { setlayout,      { "+++" }                   } }, \
-	{ { mod, 'b',          }, { setlayout,      { "TTT" }                   } }, \
-	{ { mod, 'm',          }, { setlayout,      { "[ ]" }                   } }, \
-	{ { mod, ' ',          }, { setlayout,      { NULL }                    } }, \
-	{ { mod, 'h',          }, { setmfact,       { "-0.05" }                 } }, \
-	{ { mod, 'l',          }, { setmfact,       { "+0.05" }                 } }, \
-	{ { mod, '.',          }, { toggleminimize, { NULL }                    } }, \
-	{ { mod, 's',          }, { togglebar,      { NULL }                    } }, \
-	{ { mod, 'M',          }, { togglemouse,    { NULL }                    } }, \
-	{ { mod, '\n',         }, { zoom ,          { NULL }                    } }, \
-	{ { mod, '1',          }, { focusn,         { "1" }                     } }, \
-	{ { mod, '2',          }, { focusn,         { "2" }                     } }, \
-	{ { mod, '3',          }, { focusn,         { "3" }                     } }, \
-	{ { mod, '4',          }, { focusn,         { "4" }                     } }, \
-	{ { mod, '5',          }, { focusn,         { "5" }                     } }, \
-	{ { mod, '6',          }, { focusn,         { "6" }                     } }, \
-	{ { mod, '7',          }, { focusn,         { "7" }                     } }, \
-	{ { mod, '8',          }, { focusn,         { "8" }                     } }, \
-	{ { mod, '9',          }, { focusn,         { "9" }                     } }, \
-	{ { mod, '\t',         }, { focuslast,      { NULL }                    } }, \
-	{ { mod, 'q',          }, { quit,           { NULL }                    } }, \
-	{ { mod, 'a',          }, { togglerunall,   { NULL }                    } }, \
-	{ { mod, CTRL('L'),    }, { redraw,         { NULL }                    } }, \
-	{ { mod, 'r',          }, { redraw,         { NULL }                    } }, \
-	{ { mod, 'B',          }, { togglebell,     { NULL }                    } }, \
-	{ { mod, 'e',          }, { copymode,       { NULL }                    } }, \
-	{ { mod, '/',          }, { copymode,       { "/" }                     } }, \
-	{ { mod, 'P',          }, { paste,          { NULL }                    } }, \
-	{ { mod, 'p',          }, { xpaste,         { NULL }                    } }, \
-	{ { mod, KEY_PPAGE,    }, { scrollback,     { "-1" }                    } }, \
-	{ { mod, KEY_NPAGE,    }, { scrollback,     { "1"  }                    } }, \
-	{ { mod, '?',          }, { create,         { "man dvtm", "dvtm help" } } }, \
-	{ { mod, mod,          }, { send,           { (const char []){mod, 0} } } }, \
-	{ { KEY_SPREVIOUS,     }, { scrollback,     { "-1" }                    } }, \
-	{ { KEY_SNEXT,         }, { scrollback,     { "1"  }                    } }, \
-	{ { mod, '0',          }, { view,           { NULL }                    } }, \
-	{ { mod, KEY_F(1),     }, { view,           { tags[0] }                 } }, \
-	{ { mod, KEY_F(2),     }, { view,           { tags[1] }                 } }, \
-	{ { mod, KEY_F(3),     }, { view,           { tags[2] }                 } }, \
-	{ { mod, KEY_F(4),     }, { view,           { tags[3] }                 } }, \
-	{ { mod, KEY_F(5),     }, { view,           { tags[4] }                 } }, \
-	{ { mod, 'v', '1'      }, { view,           { tags[0] }                 } }, \
-	{ { mod, 'v', '2'      }, { view,           { tags[1] }                 } }, \
-	{ { mod, 'v', '3'      }, { view,           { tags[2] }                 } }, \
-	{ { mod, 'v', '4'      }, { view,           { tags[3] }                 } }, \
-	{ { mod, 'v', '5'      }, { view,           { tags[4] }                 } }, \
-	{ { mod, 'v', '\t',    }, { viewprevtag,    { NULL }                    } }, \
-	{ { mod, 't', '0'      }, { tag,            { NULL }                    } }, \
-	{ { mod, 't', '1'      }, { tag,            { tags[0] }                 } }, \
-	{ { mod, 't', '2'      }, { tag,            { tags[1] }                 } }, \
-	{ { mod, 't', '3'      }, { tag,            { tags[2] }                 } }, \
-	{ { mod, 't', '4'      }, { tag,            { tags[3] }                 } }, \
-	{ { mod, 't', '5'      }, { tag,            { tags[4] }                 } }, \
-	{ { mod, 'V', '1'      }, { toggleview,     { tags[0] }                 } }, \
-	{ { mod, 'V', '2'      }, { toggleview,     { tags[1] }                 } }, \
-	{ { mod, 'V', '3'      }, { toggleview,     { tags[2] }                 } }, \
-	{ { mod, 'V', '4'      }, { toggleview,     { tags[3] }                 } }, \
-	{ { mod, 'V', '5'      }, { toggleview,     { tags[4] }                 } }, \
-	{ { mod, 'T', '1'      }, { toggletag,      { tags[0] }                 } }, \
-	{ { mod, 'T', '2'      }, { toggletag,      { tags[1] }                 } }, \
-	{ { mod, 'T', '3'      }, { toggletag,      { tags[2] }                 } }, \
-	{ { mod, 'T', '4'      }, { toggletag,      { tags[3] }                 } }, \
-	{ { mod, 'T', '5'      }, { toggletag,      { tags[4] }                 } }, \
-	{ { mod, CTRL('v'), '1'      }, { view,           { tags[0] }                 } }, \
-	{ { mod, CTRL('v'), '2'      }, { view,           { tags[1] }                 } }, \
-	{ { mod, CTRL('v'), '3'      }, { view,           { tags[2] }                 } }, \
-	{ { mod, CTRL('v'), '4'      }, { view,           { tags[3] }                 } }, \
-	{ { mod, CTRL('v'), '5'      }, { view,           { tags[4] }                 } }, \
-	{ { mod, CTRL('v'), '\t',    }, { viewprevtag,    { NULL }                    } }, \
-	{ { mod, CTRL('t'), '0'      }, { tag,            { NULL }                    } }, \
-	{ { mod, CTRL('t'), '1'      }, { tag,            { tags[0] }                 } }, \
-	{ { mod, CTRL('t'), '2'      }, { tag,            { tags[1] }                 } }, \
-	{ { mod, CTRL('t'), '3'      }, { tag,            { tags[2] }                 } }, \
-	{ { mod, CTRL('t'), '4'      }, { tag,            { tags[3] }                 } }, \
-	{ { mod, CTRL('t'), '5'      }, { tag,            { tags[4] }                 } }, \
-	{ { mod, CTRL('V'), '1'      }, { toggleview,     { tags[0] }                 } }, \
-	{ { mod, CTRL('V'), '2'      }, { toggleview,     { tags[1] }                 } }, \
-	{ { mod, CTRL('V'), '3'      }, { toggleview,     { tags[2] }                 } }, \
-	{ { mod, CTRL('V'), '4'      }, { toggleview,     { tags[3] }                 } }, \
-	{ { mod, CTRL('V'), '5'      }, { toggleview,     { tags[4] }                 } }, \
-	{ { mod, CTRL('T'), '1'      }, { toggletag,      { tags[0] }                 } }, \
-	{ { mod, CTRL('T'), '2'      }, { toggletag,      { tags[1] }                 } }, \
-	{ { mod, CTRL('T'), '3'      }, { toggletag,      { tags[2] }                 } }, \
-	{ { mod, CTRL('T'), '4'      }, { toggletag,      { tags[3] }                 } }, \
-	{ { mod, CTRL('T'), '5'      }, { toggletag,      { tags[4] }                 } }, \
-
+#define MOD  CTRL('g')
 
 /* you can at most specifiy MAX_ARGS (3) number of arguments */
 static KeyBinding bindings[] = {
-    __bindings(CTRL('z'))
-    __bindings(CTRL('g'))
+	{ { MOD, 'C',          }, { create,         { NULL }                    } },
+	{ { MOD, 'c',          }, { create,         { NULL, NULL, "$CWD" }      } },
+	{ { MOD, 'x',          }, { killclient,     { NULL }                    } },
+	{ { MOD, 'j',          }, { focusnext,      { NULL }                    } },
+	{ { MOD, 'u',          }, { focusnextnm,    { NULL }                    } },
+	{ { MOD, 'K',          }, { focusprevnm,    { NULL }                    } },
+	{ { MOD, 'k',          }, { focusprev,      { NULL }                    } },
+	{ { MOD, 'f',          }, { setlayout,      { "[]=" }                   } },
+	{ { MOD, 'g',          }, { setlayout,      { "+++" }                   } },
+	{ { MOD, 'b',          }, { setlayout,      { "TTT" }                   } },
+	{ { MOD, 'm',          }, { setlayout,      { "[ ]" }                   } },
+	{ { MOD, ' ',          }, { setlayout,      { NULL }                    } },
+	{ { MOD, 'i',          }, { incnmaster,     { "+1" }                    } },
+	{ { MOD, 'd',          }, { incnmaster,     { "-1" }                    } },
+	{ { MOD, 'h',          }, { setmfact,       { "-0.05" }                 } },
+	{ { MOD, 'l',          }, { setmfact,       { "+0.05" }                 } },
+	{ { MOD, '.',          }, { toggleminimize, { NULL }                    } },
+	{ { MOD, 's',          }, { togglebar,      { NULL }                    } },
+	{ { MOD, 'S',          }, { togglebarpos,   { NULL }                    } },
+	{ { MOD, 'M',          }, { togglemouse,    { NULL }                    } },
+	{ { MOD, '\n',         }, { zoom ,          { NULL }                    } },
+	{ { MOD, '\r',         }, { zoom ,          { NULL }                    } },
+	{ { MOD, '1',          }, { focusn,         { "1" }                     } },
+	{ { MOD, '2',          }, { focusn,         { "2" }                     } },
+	{ { MOD, '3',          }, { focusn,         { "3" }                     } },
+	{ { MOD, '4',          }, { focusn,         { "4" }                     } },
+	{ { MOD, '5',          }, { focusn,         { "5" }                     } },
+	{ { MOD, '6',          }, { focusn,         { "6" }                     } },
+	{ { MOD, '7',          }, { focusn,         { "7" }                     } },
+	{ { MOD, '8',          }, { focusn,         { "8" }                     } },
+	{ { MOD, '9',          }, { focusn,         { "9" }                     } },
+	{ { MOD, '\t',         }, { focuslast,      { NULL }                    } },
+	{ { MOD, 'q',          }, { quit,           { NULL }                    } },
+	{ { MOD, 'a',          }, { togglerunall,   { NULL }                    } },
+	{ { MOD, CTRL('L'),    }, { redraw,         { NULL }                    } },
+	{ { MOD, 'r',          }, { redraw,         { NULL }                    } },
+	{ { MOD, 'e',          }, { copymode,       { NULL }                    } },
+	{ { MOD, '/',          }, { copymode,       { "/" }                     } },
+	{ { MOD, 'P',          }, { paste,          { NULL }                    } },
+	{ { MOD, 'p',          }, { xpaste,         { NULL }                    } },
+	{ { MOD, KEY_PPAGE,    }, { scrollback,     { "-1" }                    } },
+	{ { MOD, KEY_NPAGE,    }, { scrollback,     { "1"  }                    } },
+	{ { MOD, '?',          }, { create,         { "man dvtm", "dvtm help" } } },
+	{ { MOD, MOD,          }, { send,           { (const char []){MOD, 0} } } },
+	{ { KEY_SPREVIOUS,     }, { scrollback,     { "-1" }                    } },
+	{ { KEY_SNEXT,         }, { scrollback,     { "1"  }                    } },
+	{ { MOD, '0',          }, { view,           { NULL }                    } },
+	{ { MOD, KEY_F(1),     }, { view,           { tags[0] }                 } },
+	{ { MOD, KEY_F(2),     }, { view,           { tags[1] }                 } },
+	{ { MOD, KEY_F(3),     }, { view,           { tags[2] }                 } },
+	{ { MOD, KEY_F(4),     }, { view,           { tags[3] }                 } },
+	{ { MOD, KEY_F(5),     }, { view,           { tags[4] }                 } },
+	{ { MOD, 'v', '0'      }, { view,           { NULL }                    } },
+	{ { MOD, 'v', '1'      }, { view,           { tags[0] }                 } },
+	{ { MOD, 'v', '2'      }, { view,           { tags[1] }                 } },
+	{ { MOD, 'v', '3'      }, { view,           { tags[2] }                 } },
+	{ { MOD, 'v', '4'      }, { view,           { tags[3] }                 } },
+	{ { MOD, 'v', '5'      }, { view,           { tags[4] }                 } },
+	{ { MOD, 'v', '\t',    }, { viewprevtag,    { NULL }                    } },
+	{ { MOD, 't', '0'      }, { tag,            { NULL }                    } },
+	{ { MOD, 't', '1'      }, { tag,            { tags[0] }                 } },
+	{ { MOD, 't', '2'      }, { tag,            { tags[1] }                 } },
+	{ { MOD, 't', '3'      }, { tag,            { tags[2] }                 } },
+	{ { MOD, 't', '4'      }, { tag,            { tags[3] }                 } },
+	{ { MOD, 't', '5'      }, { tag,            { tags[4] }                 } },
+	{ { MOD, 'V', '1'      }, { toggleview,     { tags[0] }                 } },
+	{ { MOD, 'V', '2'      }, { toggleview,     { tags[1] }                 } },
+	{ { MOD, 'V', '3'      }, { toggleview,     { tags[2] }                 } },
+	{ { MOD, 'V', '4'      }, { toggleview,     { tags[3] }                 } },
+	{ { MOD, 'V', '5'      }, { toggleview,     { tags[4] }                 } },
+	{ { MOD, 'T', '1'      }, { toggletag,      { tags[0] }                 } },
+	{ { MOD, 'T', '2'      }, { toggletag,      { tags[1] }                 } },
+	{ { MOD, 'T', '3'      }, { toggletag,      { tags[2] }                 } },
+	{ { MOD, 'T', '4'      }, { toggletag,      { tags[3] }                 } },
+	{ { MOD, 'T', '5'      }, { toggletag,      { tags[4] }                 } },
 };
 
 static const ColorRule colorrules[] = {
@@ -240,10 +215,11 @@ static char const * const keytable[] = {
  * redirected (i.e. not a terminal).
  */
 static Editor editors[] = {
-	{ .name = "vvis",        .argv = { "vvis", "+%d", "-", NULL }, .filter = true  },
+	//{ .name = "vvis",        .argv = { "vvis", "+%d", "-", NULL }, .filter = true  },
 	{ .name = "vis",         .argv = { "vis", "+%d", "-", NULL  }, .filter = true  },
 	{ .name = "sandy",       .argv = { "sandy", "-d", "-", NULL }, .filter = true  },
 	{ .name = "dvtm-editor", .argv = { "dvtm-editor", "-", NULL }, .filter = true  },
+	{ .name = "view",         .argv = { "vim", "+%d", "-", NULL  }, .filter = false },
 	{ .name = "vim",         .argv = { "vim", "+%d", "-", NULL  }, .filter = false },
 	{ .name = "less",        .argv = { "less", "+%d", NULL      }, .filter = false },
 	{ .name = "more",        .argv = { "more", "+%d", NULL      }, .filter = false },

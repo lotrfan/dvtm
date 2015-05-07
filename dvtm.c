@@ -1219,7 +1219,7 @@ xpaste(const char *args[]) {
 			char buf[128];
 
 			while (1) {
-				ssize_t len = read(child_to_parent[0], buf, countof(buf));
+				ssize_t len = read(child_to_parent[0], buf, LENGTH(buf));
 				if (len == -1) {
 					if (errno == EINTR)
 						continue;
