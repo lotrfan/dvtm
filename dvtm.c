@@ -189,6 +189,7 @@ static void xpaste(const char *args[]);
 static void quit(const char *args[]);
 static void redraw(const char *args[]);
 static void scrollback(const char *args[]);
+static void scrollback_lines(const char *args[]);
 static void send(const char *args[]);
 static void setlayout(const char *args[]);
 static void incnmaster(const char *args[]);
@@ -1265,6 +1266,20 @@ scrollback(const char *args[]) {
 		vt_scroll(sel->term, -sel->h/2);
 	else
 		vt_scroll(sel->term,  sel->h/2);
+
+	draw(sel);
+	curs_set(vt_cursor_visible(sel->term));
+}
+
+static void
+scrollback_lines(const char *args[]) {
+	if (!is_content_visible(sel))
+		return;
+
+	if (!args[0] || atoi(args[0]) < 0)
+		vt_scroll(sel->term, -2);
+	else
+		vt_scroll(sel->term,  2);
 
 	draw(sel);
 	curs_set(vt_cursor_visible(sel->term));
